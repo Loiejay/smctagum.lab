@@ -1,10 +1,159 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Search, MapPin, Beaker, Archive, ArrowRight, ArrowLeft, Sparkles, ShieldAlert, FlaskConical, Loader2 } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMC Lab Chemical Locator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom styles for better readability and a clean look */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* Light gray background */
+        }
+        .prose {
+            max-width: 100%;
+        }
+        /* Ensure responsive height on larger screens */
+        @media (min-width: 1024px) {
+            #chemical-list-container {
+                max-height: calc(100vh - 140px);
+            }
+        }
+        /* Style for the static information panel */
+        .info-panel h4 {
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+<body class="text-slate-800 flex flex-col min-h-screen">
 
-// --- DATA SECTION ---
-// NOTE: This list now contains the complete range of chemicals from 1 to 208, 
-// including the previously missing block from 31 to 185, integrated from the uploaded file.
-const rawCsvData = `
+    <!-- Header: Royal Blue Background -->
+    <header class="bg-blue-900 text-white p-6 shadow-xl border-b-4 border-yellow-500">
+        <div class="max-w-6xl mx-auto">
+            <div class="flex flex-col items-center justify-center mb-6 border-b border-blue-700/50 pb-4">
+                <!-- Logo/Placeholder -->
+                <img 
+                    src="https://smctagum.edu.ph/main/wp-content/uploads/2022/02/cropped-banner-2-01.png" 
+                    alt="St. Mary's College of Tagum Inc. Banner" 
+                    class="w-full max-w-sm h-auto rounded-lg object-contain mb-4 border-2 border-white shadow-xl bg-white p-2" 
+                    onerror="this.onerror=null; this.src='https://placehold.co/400x100/FFFFFF/000000?text=SMC+TAGUM+LAB';"
+                />
+                <p class="text-xl font-semibold tracking-wider text-yellow-400">
+                    St. Mary's College of Tagum Inc.
+                </p>
+            </div>
+            
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 mt-4">
+                <div class="flex items-center gap-3">
+                    <div class="bg-white p-2 rounded-full shadow-md">
+                        <i data-lucide="beaker" class="w-8 h-8 text-blue-900"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold tracking-wide">Lab Inventory Locator</h1>
+                        <p class="text-yellow-400 text-sm font-medium">Royal Chemical Database (Static Version)</p>
+                    </div>
+                </div>
+                <div class="relative w-full md:w-96">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i data-lucide="search" class="h-5 w-5 text-blue-300"></i>
+                    </div>
+                    <input
+                        type="text"
+                        id="search-input"
+                        class="block w-full pl-10 pr-3 py-2 border-2 border-blue-800 rounded-lg leading-5 bg-blue-800 text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:bg-blue-900 transition-colors shadow-inner"
+                        placeholder="Search chemical name..."
+                        oninput="handleSearch(this.value)"
+                    />
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-6xl mx-auto w-full p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left Column: Search Results -->
+        <div id="chemical-list-container" class="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden flex flex-col h-[500px] lg:h-[calc(100vh-140px)]">
+            <div class="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                <span class="font-bold text-blue-900 uppercase tracking-wider text-sm">Chemical List</span>
+                <span id="result-count" class="text-xs font-bold px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full border border-yellow-200">
+                    208 Found
+                </span>
+            </div>
+            <div id="chemical-list" class="overflow-y-auto flex-1 p-3 grid grid-cols-2 md:grid-cols-3 gap-2"> 
+                <!-- Chemical buttons go here -->
+            </div>
+        </div>
+
+        <!-- Right Column: Locator Map & Info -->
+        <div class="lg:col-span-2 flex flex-col gap-6">
+            
+            <!-- Top Panel: Selection & Info -->
+            <div class="bg-white rounded-xl shadow-xl border border-gray-100 p-6">
+                <div class="mb-4 border-b border-gray-100 pb-4 flex justify-between items-start">
+                    <div>
+                        <h2 class="text-xl font-bold text-blue-900 flex items-center gap-2">
+                            <i data-lucide="map-pin" class="text-yellow-500 fill-yellow-500 w-6 h-6"></i>
+                            Locator & Static Guide
+                        </h2>
+                        <p class="text-sm text-gray-500 mt-1">Select a chemical to view location and static safety data</p>
+                    </div>
+                </div>
+
+                <div id="selected-chemical-panel">
+                    <!-- Dynamic content loads here -->
+                    <div id="selection-placeholder" class="text-center py-10 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 text-gray-400">
+                        <i data-lucide="search" class="mx-auto h-10 w-10 mb-3 opacity-30 text-blue-900"></i>
+                        <p class="font-medium">Select a chemical from the list to see details</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Panel: Cabinet Map -->
+            <div class="bg-white rounded-xl shadow-xl border border-gray-100 p-6 flex-1 flex flex-col min-h-[400px]">
+                <h3 class="font-bold text-blue-900 mb-6 uppercase tracking-wider text-sm flex items-center gap-2">
+                    <i data-lucide="archive" class="text-yellow-500 w-4 h-4"></i> Visual Map
+                </h3>
+                <div class="flex-1 flex gap-4 sm:gap-8 justify-center items-start overflow-y-auto">
+                    <!-- LEFT SIDE CABINET -->
+                    <div class="flex flex-col items-center w-1/2">
+                        <h3 class="mb-4 font-bold text-xs sm:text-sm text-gray-500 flex items-center gap-2">
+                            <i data-lucide="arrow-left" class="w-3 h-3"></i> LEFT SIDE
+                        </h3>
+                        <div id="left-cabinet" class="w-full grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                            <!-- Left shelves go here -->
+                        </div>
+                    </div>
+
+                    <!-- DIVIDER -->
+                    <div class="w-px bg-gray-200 h-full mx-1"></div>
+
+                    <!-- RIGHT SIDE CABINET -->
+                    <div class="flex flex-col items-center w-1/2">
+                        <h3 class="mb-4 font-bold text-xs sm:text-sm text-gray-500 flex items-center gap-2">
+                            RIGHT SIDE <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                        </h3>
+                        <div id="right-cabinet" class="w-full grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                            <!-- Right shelves go here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- DATA SECTION (CSV Data) ---
+        const rawCsvData = `
 CABINET -1 ,,,,,,SIDE ,,CUBILCE 
 1. BROMOCRESOL GREEN INDICATOR ,,,,,,RIGHT ,,1
 2.BROMOTHYMOL  BLUE ,,,,,,RIGHT ,,1
@@ -214,409 +363,336 @@ CABINET -1 ,,,,,,SIDE ,,CUBILCE
 206. AMMONIUM IODIDE,,,,,,LEFT,,24
 207. CALCIUM PHOSPHATE,,,,,,LEFT,,24
 208. MALTOSE MONOHYDRATE 92%,,,,,,LEFT,,24
-`;
+        `;
 
-// --- GEMINI API HELPERS ---
-const apiKey = ""; // The environment will provide this key at runtime
+        // Global variables for application state
+        let allChemicals = [];
+        let filteredChemicals = [];
+        let selectedChemical = null;
+        let shelfNumbers = { left: [], right: [] };
 
-// Using exponential backoff for API calls
-const callGemini = async (prompt, retries = 3) => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-          }),
+        // --- DATA PARSING AND PREPARATION ---
+        function parseData(data) {
+            const lines = data.split('\n');
+            const parsed = [];
+
+            lines.forEach((line) => {
+                const parts = line.split(',');
+                if (parts.length < 5) return;
+                let rawName = parts[0] || "";
+                if (!rawName || rawName.includes("CABINET")) return;
+
+                // Clean up the name: remove leading number/dot/space and trim
+                const name = rawName.replace(/^\d+\.?\s*/, '').trim();
+                
+                // Attempt to find SIDE ('LEFT' or 'RIGHT')
+                const sideIndex = parts.findIndex(p => p && (p.trim() === 'LEFT' || p.trim() === 'RIGHT'));
+                if (sideIndex === -1) return;
+                const side = parts[sideIndex].trim();
+                
+                // Attempt to find CUBICLE
+                let cubicle = null;
+                let cubicleCandidate = parts[sideIndex + 2] || parts[parts.length - 1] || parts[sideIndex + 1];
+
+                if (cubicleCandidate) {
+                    cubicle = parseInt(cubicleCandidate.trim());
+                }
+
+                if (name && side && !isNaN(cubicle)) {
+                    parsed.push({
+                        id: parsed.length + 1,
+                        name: name,
+                        side: side,
+                        cubicle: cubicle
+                    });
+                }
+            });
+            return parsed;
         }
-      );
 
-      if (response.status === 429 && i < retries - 1) {
-        // Handle rate limiting with exponential backoff
-        const delay = Math.pow(2, i) * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
-        continue; // Retry the request
-      }
+        function calculateShelves(chemicals) {
+            const leftShelves = new Set();
+            const rightShelves = new Set();
+            chemicals.forEach(chem => {
+                if (chem.side === 'LEFT') leftShelves.add(chem.cubicle);
+                if (chem.side === 'RIGHT') rightShelves.add(chem.cubicle);
+            });
+            
+            shelfNumbers = {
+                left: Array.from(leftShelves).sort((a, b) => a - b),
+                right: Array.from(rightShelves).sort((a, b) => a - b)
+            };
+        }
 
-      if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
-      }
+        // --- STATIC CONTENT REPLACING GEMINI ---
+        function getStaticSafetyData(chemicalName) {
+            chemicalName = chemicalName.toLowerCase();
+            
+            let type = "General Chemical";
+            let data = {
+                safety: "Consult the Safety Data Sheet (SDS). Wear standard lab coat, gloves, and eye protection. Avoid inhalation and ingestion.",
+                disposal: "Collect all waste in a properly labeled non-hazardous waste container. Do not pour down the sink unless specifically approved by lab management.",
+                uses: "Often used in quantitative analysis or synthesis experiments. Verify concentration before use."
+            };
 
-      const data = await response.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
+            // Classification Logic for static data
+            if (chemicalName.includes('acid') && !chemicalName.includes('amino')) {
+                type = "Strong Acid/Corrosive";
+                data.safety = "<h4>**Hazards**</h4><p class='mt-2'>Highly Corrosive; causes severe chemical burns. May react violently with bases or water. Always store below eye level.</p><h4>**PPE**</h4><p class='mt-2'>Neoprene or rubber gloves, full wrap-around safety goggles or face shield, and chemical-resistant lab coat. Use in a fume hood.</p><h4>**Handling**</h4><p class='mt-2'>**ALWAYS ADD ACID TO WATER (AAA)**. Never the reverse. Pour slowly and stir constantly to dissipate heat.</p>";
+                data.disposal = "<h4>**Pre-Disposal Check**</h4><p class='mt-2'>Must be neutralized to a pH between 6 and 8. Always use a pH meter or test paper to confirm the neutralization.</p><h4>**Procedure**</h4><p class='mt-2'>Slowly neutralize the acid waste with a dilute sodium bicarbonate (baking soda) or sodium hydroxide solution. Stir well and monitor temperature. Once neutralized, flush down the drain with large amounts of running water.</p>";
+                data.uses = "Titrations, making standard solutions, dissolving metal oxides, and chemical synthesis.";
+            } else if (chemicalName.includes('hydroxide') || chemicalName.includes('koh') || chemicalName.includes('alkali')) {
+                type = "Strong Alkali (Base)/Corrosive";
+                data.safety = "<h4>**Hazards**</h4><p class='mt-2'>Highly Corrosive; causes severe burns, especially to eyes. Solid pellets/powders generate extreme heat when dissolved in water.</p><h4>**PPE**</h4><p class='mt-2'>Rubber gloves, tight-fitting safety goggles, and a lab coat. Handle solids with a scoop, never fingers.</p><h4>**Handling**</h4><p class='mt-2'>Dissolve solids slowly in cold water while stirring in a sink, or in an ice bath, to control the exothermic reaction.</p>";
+                data.disposal = "<h4>**Pre-Disposal Check**</h4><p class='mt-2'>Must be neutralized to a pH between 6 and 8. Use dilute acetic acid (vinegar) or hydrochloric acid as the neutralizer.</p><h4>**Procedure**</h4><p class='mt-2'>Slowly add base waste to the neutralizer solution while stirring. Monitor pH and temperature. Once neutralized, flush down the drain with large amounts of running water.</p>";
+                data.uses = "Acid-base titrations, saponification (soap making), and cleaning organic residues from glassware.";
+            } else if (chemicalName.includes('alcohol') || chemicalName.includes('acetone') || chemicalName.includes('hexane') || chemicalName.includes('chloroform')) {
+                type = "Flammable/Volatile Solvent";
+                data.safety = "<h4>**Hazards**</h4><p class='mt-2'>Highly Flammable (low flash point) and Volatile. Vapors can accumulate and ignite easily. Toxic if inhaled.</p><h4>**PPE**</h4><p class='mt-2'>Nitrile gloves, safety goggles, and lab coat. Ensure good ventilation.</p><h4>**Handling**</h4><p class='mt-2'>Keep away from ALL ignition sources (flames, sparks, hot plates). Work in a well-ventilated area or fume hood.</p>";
+                data.disposal = "<h4>**Pre-Disposal Check**</h4><p class='mt-2'>DO NOT pour down the drain. Ensure the waste container is labeled with the exact contents (e.g., 'Waste Isopropyl Alcohol').</p><h4>**Procedure**</h4><p class='mt-2'>Collect all non-halogenated spent solvent in a designated 'Flammable Liquid Waste' container. Seal tightly and store in the flammables cabinet for hazardous waste collection.</p>";
+                data.uses = "Extraction, recrystallization, chromatography, and as a general solvent for non-polar substances.";
+            } else if (chemicalName.includes('nitrate') || chemicalName.includes('sulfate') || chemicalName.includes('chloride')) {
+                type = "Inorganic Salt (General)";
+                data.safety = "<h4>**Hazards**</h4><p class='mt-2'>Low immediate hazard, but toxic if large amounts are ingested. Some heavy metal salts (Lead, Mercury) are highly toxic.</p><h4>**PPE**</h4><p class='mt-2'>Standard lab coat and eye protection. Use gloves when handling powders to avoid skin exposure.</p><h4>**Handling**</h4><p class='mt-2'>Avoid generating dust. Store in a cool, dry area. Wash hands after handling.</p>";
+                data.disposal = "<h4>**Pre-Disposal Check**</h4><p class='mt-2'>Check institutional guidelines. Most non-heavy metal salts (Na, K, Ca, Mg) are safe for sink disposal.</p><h4>**Procedure**</h4><p class='mt-2'>If non-regulated (e.g., NaCl, MgSO4), dissolve in excess water and flush down the drain with continuous running water. If containing heavy metals (e.g., Lead Nitrate), collect as hazardous waste.</p>";
+                data.uses = "Precipitation reactions, solution preparation, qualitative analysis (testing for ions).";
+            }
+            
+            // Final Disclaimer
+            const disclaimer = `<div class="mt-4 text-xs italic text-gray-500 border-t pt-2">*Note: This is generic safety guidance for a ${type} chemical. Always follow your institution's official Safety Data Sheet (SDS) and Standard Operating Procedures (SOPs) for the chemical in your lab.*</div>`;
+            data.safety += disclaimer;
+            data.disposal += disclaimer;
+            data.uses += disclaimer;
 
-    } catch (error) {
-      if (i === retries - 1) {
-        console.error("Gemini API Error after retries:", error);
-        return "Sorry, I couldn't fetch that information right now. Please try again.";
-      }
-      // Continue to next retry
-    }
-  }
-};
+            return data;
+        }
 
-const parseData = (data) => {
-  const lines = data.split('\n');
-  const parsed = [];
 
-  lines.forEach((line) => {
-    const parts = line.split(',');
-    if (parts.length < 5) return;
-    let rawName = parts[0] || "";
-    if (!rawName || rawName.includes("CABINET")) return;
-    // Clean up the name: remove leading number/dot/space and trim
-    const name = rawName.replace(/^\d+\.?\s*/, '').trim();
-    
-    // Attempt to find SIDE ('LEFT' or 'RIGHT')
-    const sideIndex = parts.findIndex(p => p && (p.trim() === 'LEFT' || p.trim() === 'RIGHT'));
-    if (sideIndex === -1) return;
-    const side = parts[sideIndex].trim();
-    
-    // Attempt to find CUBICLE, which is usually 2 or 3 positions after SIDE
-    let cubicle = null;
-    let cubicleCandidate = parts[sideIndex + 2] || parts[parts.length - 1] || parts[sideIndex + 1];
+        // --- RENDERING FUNCTIONS ---
 
-    if (cubicleCandidate) {
-        cubicle = parseInt(cubicleCandidate.trim());
-    }
+        function renderChemicalList(chemicals) {
+            const listContainer = document.getElementById('chemical-list');
+            const resultCount = document.getElementById('result-count');
+            
+            listContainer.innerHTML = ''; // Clear previous results
+            resultCount.textContent = `${chemicals.length} Found`;
 
-    if (name && side && !isNaN(cubicle)) {
-      parsed.push({
-        id: parsed.length + 1,
-        name: name,
-        side: side,
-        cubicle: cubicle
-      });
-    }
-  });
-  return parsed;
-};
+            if (chemicals.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="col-span-full text-center p-10 text-gray-400">
+                        <p>No chemicals found matching the search term.</p>
+                    </div>
+                `;
+                return;
+            }
 
-export default function App() {
-  const [chemicals, setChemicals] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedChemical, setSelectedChemical] = useState(null);
-  
-  // AI State
-  const [aiContent, setAiContent] = useState(null);
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const [aiMode, setAiMode] = useState(null); 
+            chemicals.forEach(chem => {
+                const isSelected = selectedChemical && selectedChemical.id === chem.id;
+                const buttonClass = `w-full text-center p-2 rounded-lg border transition-all duration-200 flex flex-col items-center justify-center group h-24
+                    ${isSelected 
+                        ? 'bg-blue-900 border-yellow-500 text-white shadow-md ring-1 ring-yellow-500' 
+                        : 'bg-white border-gray-200 hover:bg-blue-50 hover:border-blue-300'
+                    }`;
+                const detailClass = `mt-1 flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-bold
+                    ${isSelected ? 'bg-yellow-500 text-blue-900' : 'bg-gray-100 text-gray-500 group-hover:bg-white'}`;
 
-  useEffect(() => {
-    const data = parseData(rawCsvData);
-    setChemicals(data);
-  }, []);
+                const button = document.createElement('button');
+                button.className = buttonClass;
+                button.innerHTML = `
+                    <span class="text-sm font-semibold truncate w-full px-1">${chem.name}</span>
+                    <div class="${detailClass}">CUB. ${chem.cubicle}</div>
+                `;
+                button.onclick = () => handleSelectChemical(chem);
+                listContainer.appendChild(button);
+            });
+        }
 
-  const filteredChemicals = useMemo(() => {
-    if (!searchTerm) return chemicals;
-    return chemicals.filter(chem => 
-      chem.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [chemicals, searchTerm]);
+        function renderCabinetMap() {
+            const leftCabinet = document.getElementById('left-cabinet');
+            const rightCabinet = document.getElementById('right-cabinet');
+            
+            leftCabinet.innerHTML = '';
+            rightCabinet.innerHTML = '';
 
-  const shelves = useMemo(() => {
-    const leftShelves = new Set();
-    const rightShelves = new Set();
-    chemicals.forEach(chem => {
-      if (chem.side === 'LEFT') leftShelves.add(chem.cubicle);
-      if (chem.side === 'RIGHT') rightShelves.add(chem.cubicle);
-    });
-    return {
-      // Sort numerically to ensure the map displays correctly
-      left: Array.from(leftShelves).sort((a,b) => a - b),
-      right: Array.from(rightShelves).sort((a,b) => a - b)
-    };
-  }, [chemicals]);
+            // Render Left Cabinet Shelves
+            shelfNumbers.left.forEach(shelfNum => {
+                const isTarget = selectedChemical && selectedChemical.side === 'LEFT' && selectedChemical.cubicle === shelfNum;
+                const shelfDiv = document.createElement('div');
+                shelfDiv.className = `aspect-square rounded-lg flex flex-col items-center justify-center border-2 transition-all duration-300
+                    ${isTarget 
+                        ? 'bg-yellow-400 border-yellow-600 text-blue-900 shadow-xl scale-110 z-10' 
+                        : 'bg-white border-gray-200 text-gray-300'
+                    }`;
+                shelfDiv.innerHTML = `
+                    <i data-lucide="archive" class="${isTarget ? 'w-6 h-6' : 'w-4 h-4'}"></i>
+                    <span class="text-xs sm:text-sm font-bold mt-1 ${isTarget ? 'text-blue-900' : 'text-gray-400'}">
+                        ${shelfNum}
+                    </span>
+                `;
+                leftCabinet.appendChild(shelfDiv);
+            });
 
-  // Reset AI content when selecting a new chemical
-  const handleSelectChemical = (chem) => {
-    setSelectedChemical(chem);
-    setAiContent(null);
-    setAiMode(null);
-  };
+            // Render Right Cabinet Shelves
+            shelfNumbers.right.forEach(shelfNum => {
+                const isTarget = selectedChemical && selectedChemical.side === 'RIGHT' && selectedChemical.cubicle === shelfNum;
+                const shelfDiv = document.createElement('div');
+                shelfDiv.className = `aspect-square rounded-lg flex flex-col items-center justify-center border-2 transition-all duration-300
+                    ${isTarget 
+                        ? 'bg-yellow-400 border-yellow-600 text-blue-900 shadow-xl scale-110 z-10' 
+                        : 'bg-white border-gray-200 text-gray-300'
+                    }`;
+                shelfDiv.innerHTML = `
+                    <i data-lucide="archive" class="${isTarget ? 'w-6 h-6' : 'w-4 h-4'}"></i>
+                    <span class="text-xs sm:text-sm font-bold mt-1 ${isTarget ? 'text-blue-900' : 'text-gray-400'}">
+                        ${shelfNum}
+                    </span>
+                `;
+                rightCabinet.appendChild(shelfDiv);
+            });
+            
+            // Re-render Lucide icons
+            lucide.createIcons();
+        }
 
-  const handleGetSafetyInfo = async () => {
-    if (!selectedChemical) return;
-    setIsAiLoading(true);
-    setAiMode('safety');
-    setAiContent(null);
-    
-    const prompt = `You are a laboratory safety expert. Provide a brief, concise safety snapshot for the chemical "${selectedChemical.name}". 
-    Format the response with these exact sections in bold:
-    - **Hazards**: (Briefly list main hazards like Flammable, Corrosive, Toxic)
-    - **PPE**: (Required protective gear)
-    - **Handling**: (One key handling or storage tip)
-    Keep the tone professional and serious. Max 100 words.`;
+        function renderSelectedChemicalPanel() {
+            const panel = document.getElementById('selected-chemical-panel');
+            
+            if (!selectedChemical) {
+                // Show placeholder
+                panel.innerHTML = `
+                    <div id="selection-placeholder" class="text-center py-10 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 text-gray-400">
+                        <i data-lucide="search" class="mx-auto h-10 w-10 mb-3 opacity-30 text-blue-900"></i>
+                        <p class="font-medium">Select a chemical from the list to see details</p>
+                    </div>
+                `;
+                return;
+            }
 
-    const text = await callGemini(prompt);
-    setAiContent(text);
-    setIsAiLoading(false);
-  };
+            const staticData = getStaticSafetyData(selectedChemical.name);
 
-  const handleGetUses = async () => {
-    if (!selectedChemical) return;
-    setIsAiLoading(true);
-    setAiMode('uses');
-    setAiContent(null);
+            panel.innerHTML = `
+                <div class="flex flex-col gap-4">
+                    <!-- Location Banner -->
+                    <div class="bg-gradient-to-r from-blue-50 to-white border-l-4 border-yellow-500 text-blue-900 p-4 rounded-r-lg shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-blue-900 text-white p-3 rounded-full shadow-md border-2 border-yellow-400">
+                                <i data-lucide="archive" class="w-6 h-6"></i>
+                            </div>
+                            <div>
+                                <span class="block font-bold text-xl leading-tight text-blue-900">${selectedChemical.name}</span>
+                                <span class="text-sm text-blue-700">
+                                    Located in: <strong class="text-blue-900 bg-yellow-200 px-1 rounded">${selectedChemical.side} Side</strong>, Cubicle <strong class="text-blue-900 bg-yellow-200 px-1 rounded">${selectedChemical.cubicle}</strong>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
 
-    const prompt = `You are a science educator. List 3 interesting or common educational experiments/uses for the chemical "${selectedChemical.name}" in a school laboratory setting.
-    Use bullet points. Keep it engaging but safe. Max 100 words.`;
+                    <!-- Static Information Tabs -->
+                    <div id="info-tabs" class="flex gap-2 p-1 bg-gray-100 rounded-lg">
+                        <button class="tab-button w-1/3 p-2 rounded-lg text-sm font-semibold transition-colors bg-blue-900 text-white shadow-md" data-tab="safety">
+                            <i data-lucide="shield-alert" class="w-4 h-4 inline mr-1"></i> Safety Snapshot
+                        </button>
+                        <button class="tab-button w-1/3 p-2 rounded-lg text-sm font-semibold transition-colors text-blue-900 hover:bg-white" data-tab="uses">
+                            <i data-lucide="flask-conical" class="w-4 h-4 inline mr-1"></i> Suggested Uses
+                        </button>
+                        <button class="tab-button w-1/3 p-2 rounded-lg text-sm font-semibold transition-colors text-blue-900 hover:bg-white" data-tab="disposal">
+                            <i data-lucide="trash-2" class="w-4 h-4 inline mr-1"></i> Disposal Guide
+                        </button>
+                    </div>
 
-    const text = await callGemini(prompt);
-    setAiContent(text);
-    setIsAiLoading(false);
-  };
-
-  return (
-    <div className="min-h-screen bg-white font-sans text-slate-800 flex flex-col">
-      {/* Header: Royal Blue Background */}
-      <header className="bg-blue-900 text-white p-6 shadow-lg border-b-4 border-yellow-500">
-        <div className="max-w-6xl mx-auto">
-          {/* New: School Logo and Name (Updated for Banner Image) */}
-          <div className="flex flex-col items-center justify-center mb-6 border-b border-blue-700/50 pb-4">
-            {/* Logo for St. Mary's College of Tagum Inc. (Updated to Banner URL and smaller size) */}
-            <img 
-              src="https://smctagum.edu.ph/main/wp-content/uploads/2022/02/cropped-banner-2-01.png" 
-              alt="St. Mary's College of Tagum Inc. Banner" 
-              // Updated to max-w-sm
-              className="w-full max-w-sm h-auto rounded-lg object-contain mb-4 border-2 border-white shadow-xl bg-white p-2" 
-              onError={(e) => {
-                e.target.onerror = null; // prevents infinite loop
-                e.target.src = "https://placehold.co/400x100/FFFFFF/000000?text=SMC+TAGUM+LAB"; // Fallback to placeholder
-              }}
-            />
-            <p className="text-xl font-semibold tracking-wider text-yellow-400">
-              St. Mary's College of Tagum Inc.
-            </p>
-          </div>
-          
-          {/* Existing: App Title and Search Bar */}
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4 mt-4">
-            <div className="flex items-center gap-3">
-              <div className="bg-white p-2 rounded-full shadow-md">
-                <Beaker className="w-8 h-8 text-blue-900" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold tracking-wide">Lab Inventory Locator</h1>
-                <p className="text-yellow-400 text-sm font-medium">Royal Chemical Database</p>
-              </div>
-            </div>
-            <div className="relative w-full md:w-96">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-blue-300" />
-              </div>
-              <input
-                type="text"
-                className="block w-full pl-10 pr-3 py-2 border-2 border-blue-800 rounded-lg leading-5 bg-blue-800 text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:bg-blue-900 transition-colors shadow-inner"
-                placeholder="Search chemical name..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  handleSelectChemical(null);
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="flex-1 max-w-6xl mx-auto w-full p-4 md:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Static Content Area -->
+                    <div id="info-content" class="info-panel mt-2 bg-gray-50 rounded-lg p-5 border border-gray-200 relative shadow-inner">
+                        <!-- Default to Safety Tab Content -->
+                        <div id="content-safety" class="prose prose-sm max-w-none text-slate-700 leading-relaxed">
+                            ${staticData.safety}
+                        </div>
+                        <div id="content-uses" class="prose prose-sm max-w-none text-slate-700 leading-relaxed hidden">
+                            ${staticData.uses}
+                        </div>
+                        <div id="content-disposal" class="prose prose-sm max-w-none text-slate-700 leading-relaxed hidden">
+                            ${staticData.disposal}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Setup Tab Switching Logic
+            setupTabs();
+            // Re-render Lucide icons
+            lucide.createIcons();
+        }
         
-        {/* Left Column: Search Results (Now a Grid) */}
-        <div className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden flex flex-col h-[500px] lg:h-[calc(100vh-140px)]">
-          <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-            <span className="font-bold text-blue-900 uppercase tracking-wider text-sm">Chemical List</span>
-            <span className="text-xs font-bold px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full border border-yellow-200">
-              {filteredChemicals.length} Found
-            </span>
-          </div>
-          <div className="overflow-y-auto flex-1 p-3 grid grid-cols-2 md:grid-cols-3 gap-2"> {/* CHANGED to grid layout */}
-            {filteredChemicals.length === 0 ? (
-              <div className="col-span-full text-center p-10 text-gray-400">
-                <p>No chemicals found matching "{searchTerm}"</p>
-              </div>
-            ) : (
-              filteredChemicals.map((chem) => (
-                <button
-                  key={chem.id}
-                  onClick={() => handleSelectChemical(chem)}
-                  className={`w-full text-center p-2 rounded-lg border transition-all duration-200 flex flex-col items-center justify-center group h-24
-                    ${selectedChemical?.id === chem.id 
-                      ? 'bg-blue-900 border-yellow-500 text-white shadow-md ring-1 ring-yellow-500' 
-                      : 'bg-white border-gray-200 hover:bg-blue-50 hover:border-blue-300'
-                    }`}
-                >
-                  <span className="text-sm font-semibold truncate w-full px-1">{chem.name}</span>
-                  <div className={`mt-1 flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-bold
-                    ${selectedChemical?.id === chem.id ? 'bg-yellow-500 text-blue-900' : 'bg-gray-100 text-gray-500 group-hover:bg-white'}
-                  `}>
-                    CUB. {chem.cubicle}
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
+        function setupTabs() {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const infoContent = document.getElementById('info-content');
 
-        {/* Right Column: Visual Locator Map */}
-        <div className="lg:col-span-2 flex flex-col gap-6">
-          
-          {/* Top Panel: Selection & AI Actions */}
-          <div className="bg-white rounded-xl shadow-xl border border-gray-100 p-6">
-            <div className="mb-4 border-b border-gray-100 pb-4 flex justify-between items-start">
-               <div>
-                  <h2 className="text-xl font-bold text-blue-900 flex items-center gap-2">
-                    <MapPin className="text-yellow-500 fill-yellow-500" />
-                    Locator & Assistant
-                  </h2>
-                  <p className="text-sm text-gray-500 mt-1">Select a chemical to view location and ask AI</p>
-               </div>
-            </div>
+            tabButtons.forEach(button => {
+                button.onclick = function() {
+                    const targetTab = this.getAttribute('data-tab');
 
-            {selectedChemical ? (
-              <div className="flex flex-col gap-4">
-                {/* Location Banner */}
-                <div className="bg-gradient-to-r from-blue-50 to-white border-l-4 border-yellow-500 text-blue-900 p-4 rounded-r-lg shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-blue-900 text-white p-3 rounded-full shadow-md border-2 border-yellow-400">
-                      <Archive size={24} />
-                    </div>
-                    <div>
-                      <span className="block font-bold text-xl leading-tight text-blue-900">{selectedChemical.name}</span>
-                      <span className="text-sm text-blue-700">
-                        Located in: <strong className="text-blue-900 bg-yellow-200 px-1 rounded">{selectedChemical.side} Side</strong>, Cubicle <strong className="text-blue-900 bg-yellow-200 px-1 rounded">{selectedChemical.cubicle}</strong>
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                    // Reset all buttons
+                    tabButtons.forEach(btn => {
+                        btn.className = 'tab-button w-1/3 p-2 rounded-lg text-sm font-semibold transition-colors text-blue-900 hover:bg-white';
+                    });
+                    
+                    // Activate clicked button
+                    this.className = 'tab-button w-1/3 p-2 rounded-lg text-sm font-semibold transition-colors bg-blue-900 text-white shadow-md';
 
-                {/* AI Action Buttons */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button 
-                    onClick={handleGetSafetyInfo}
-                    disabled={isAiLoading}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-50 text-blue-900 border border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-300 transition-all font-bold shadow-sm"
-                  >
-                    {isAiLoading && aiMode === 'safety' ? <Loader2 className="animate-spin" size={18} /> : <ShieldAlert size={18} className="text-blue-600" />}
-                    Get Safety Snapshot
-                  </button>
-                  <button 
-                    onClick={handleGetUses}
-                    disabled={isAiLoading}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-yellow-50 text-yellow-900 border border-yellow-200 rounded-lg hover:bg-yellow-100 hover:border-yellow-300 transition-all font-bold shadow-sm"
-                  >
-                     {isAiLoading && aiMode === 'uses' ? <Loader2 className="animate-spin" size={18} /> : <FlaskConical size={18} className="text-yellow-600" />}
-                    Suggest Experiments
-                  </button>
-                </div>
+                    // Hide all content and show target content
+                    document.getElementById('content-safety').classList.add('hidden');
+                    document.getElementById('content-uses').classList.add('hidden');
+                    document.getElementById('content-disposal').classList.add('hidden');
+                    
+                    document.getElementById(`content-${targetTab}`).classList.remove('hidden');
+                };
+            });
+        }
 
-                {/* AI Response Area */}
-                {(aiContent || isAiLoading) && (
-                   <div className="mt-2 bg-gray-50 rounded-lg p-5 border border-gray-200 relative min-h-[100px] transition-all shadow-inner">
-                      {isAiLoading ? (
-                        <div className="flex flex-col items-center justify-center h-24 text-gray-400 gap-2">
-                          <Loader2 className="animate-spin text-yellow-500" size={32} />
-                          <span className="text-sm font-medium text-blue-900 animate-pulse">Consulting Gemini AI...</span>
-                        </div>
-                      ) : (
-                        <div>
-                          <h4 className="font-bold text-sm uppercase tracking-wider mb-3 flex items-center gap-2 border-b pb-2">
-                            {aiMode === 'safety' ? (
-                              <span className="text-blue-800 flex items-center gap-2"><ShieldAlert size={16} /> AI Safety Report</span>
-                            ) : (
-                              <span className="text-yellow-700 flex items-center gap-2"><Sparkles size={16} /> AI Experiment Ideas</span>
-                            )}
-                          </h4>
-                          <div className="prose prose-sm max-w-none text-slate-700 whitespace-pre-wrap leading-relaxed">
-                            {aiContent}
-                          </div>
-                        </div>
-                      )}
-                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-10 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 text-gray-400">
-                <Search className="mx-auto h-10 w-10 mb-3 opacity-30 text-blue-900" />
-                <p className="font-medium">Select a chemical from the list to see details</p>
-              </div>
-            )}
-          </div>
+        // --- HANDLERS ---
 
-          {/* Bottom Panel: Cabinet Map */}
-          <div className="bg-white rounded-xl shadow-xl border border-gray-100 p-6 flex-1 flex flex-col min-h-[400px]">
-             <h3 className="font-bold text-blue-900 mb-6 uppercase tracking-wider text-sm flex items-center gap-2">
-                <Archive size={16} className="text-yellow-500" /> Visual Map
-             </h3>
-             <div className="flex-1 flex gap-4 sm:gap-8 justify-center items-start overflow-y-auto">
-              {/* LEFT SIDE CABINET */}
-              <div className="flex flex-col items-center w-1/2">
-                <h3 className="mb-4 font-bold text-xs sm:text-sm text-gray-500 flex items-center gap-2">
-                  <ArrowLeft size={14} /> LEFT SIDE
-                </h3>
-                <div className="w-full grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                  {shelves.left.map((shelfNum) => {
-                    const isTarget = selectedChemical?.side === 'LEFT' && selectedChemical?.cubicle === shelfNum;
-                    return (
-                      <div 
-                        key={`L-${shelfNum}`}
-                        className={`aspect-square rounded-lg flex flex-col items-center justify-center border-2 transition-all duration-300
-                          ${isTarget 
-                            ? 'bg-yellow-400 border-yellow-600 text-blue-900 shadow-xl scale-110 z-10' 
-                            : 'bg-white border-gray-200 text-gray-300'
-                          }
-                        `}
-                      >
-                        <Archive size={isTarget ? 24 : 16} />
-                        <span className={`text-xs sm:text-sm font-bold mt-1 ${isTarget ? 'text-blue-900' : 'text-gray-400'}`}>
-                          {shelfNum}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+        function handleSearch(searchTerm) {
+            selectedChemical = null; // Deselect when searching
+            const term = searchTerm.toLowerCase().trim();
+            
+            if (!term) {
+                filteredChemicals = allChemicals;
+            } else {
+                filteredChemicals = allChemicals.filter(chem => 
+                    chem.name.toLowerCase().includes(term)
+                );
+            }
+            
+            renderChemicalList(filteredChemicals);
+            renderSelectedChemicalPanel(); // Update panel to show placeholder or new selection
+            renderCabinetMap(); // Clear map highlight
+        }
 
-              {/* DIVIDER */}
-              <div className="w-px bg-gray-200 h-full mx-1"></div>
+        function handleSelectChemical(chemical) {
+            selectedChemical = chemical;
+            
+            // Re-render all parts that depend on the selection
+            renderChemicalList(filteredChemicals); // Update button style
+            renderCabinetMap(); // Update map highlight
+            renderSelectedChemicalPanel(); // Update info panel
+        }
 
-              {/* RIGHT SIDE CABINET */}
-              <div className="flex flex-col items-center w-1/2">
-                <h3 className="mb-4 font-bold text-xs sm:text-sm text-gray-500 flex items-center gap-2">
-                  RIGHT SIDE <ArrowRight size={14} />
-                </h3>
-                <div className="w-full grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                  {shelves.right.map((shelfNum) => {
-                    const isTarget = selectedChemical?.side === 'RIGHT' && selectedChemical?.cubicle === shelfNum;
-                    return (
-                      <div 
-                        key={`R-${shelfNum}`}
-                        className={`aspect-square rounded-lg flex flex-col items-center justify-center border-2 transition-all duration-300
-                          ${isTarget 
-                            ? 'bg-yellow-400 border-yellow-600 text-blue-900 shadow-xl scale-110 z-10' 
-                            : 'bg-white border-gray-200 text-gray-300'
-                          }
-                        `}
-                      >
-                        <Archive size={isTarget ? 24 : 16} />
-                        <span className={`text-xs sm:text-sm font-bold mt-1 ${isTarget ? 'text-blue-900' : 'text-gray-400'}`}>
-                          {shelfNum}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-}
+        // --- INITIALIZATION ---
+        function initApp() {
+            allChemicals = parseData(rawCsvData);
+            filteredChemicals = allChemicals;
+            calculateShelves(allChemicals);
+            
+            // Initial render
+            renderChemicalList(filteredChemicals);
+            renderCabinetMap();
+            renderSelectedChemicalPanel();
+            
+            // Create Lucide icons after all HTML content is loaded
+            lucide.createIcons();
+        }
+
+        // Start the application after the document structure is loaded
+        window.onload = initApp;
+    </script>
+</body>
+</html>
